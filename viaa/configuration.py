@@ -52,21 +52,18 @@ class ConfigParser():
         self.app_cfg={'module_name':os.path.split(
                     os.path.split(repr(__file__))[0])[-1]}
         cfg = {}
-        if self.config_from_env:
-            self.app_cfg=os.environ
-            self.config["logging"] = {"level": 10}
+        
+        # TODO: Take config from commandline arguments
+        # TODO: Take config from environment variables
+        # Take config from the user's config file
+        if os.path.isfile(os.getcwd() + "/config.yml"):
+            with open(os.getcwd() + "/config.yml", "r") as ymlfile:
+                cfg: dict = yaml.load(ymlfile, Loader=loader)
+        # Fallback to default
         else:
-            # TODO: Take config from commandline arguments
-            # TODO: Take config from environment variables
-            # Take config from the user's config file
-            if os.path.isfile(os.getcwd() + "/config.yml"):
-                with open(os.getcwd() + "/config.yml", "r") as ymlfile:
-                    cfg: dict = yaml.load(ymlfile, Loader=loader)
-            # Fallback to default
-            else:
-                cfg = {"viaa":{"logging": {"level": 10,"RabPub":{"host":"test","passw":"test","user":"test"}}}}
-            if "viaa" in cfg:
-                self.config = cfg["viaa"]
-            if "application" in cfg:
-                self.app_cfg =cfg["application"]
+            cfg = {"viaa":{"logging": {"level": 10,"RabPub":{"host":"test","passw":"test","user":"test"}}}}
+        if "viaa" in cfg:
+            self.config = cfg["viaa"]
+        if "application" in cfg:
+            self.app_cfg =cfg["application"]
 

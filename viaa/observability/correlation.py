@@ -37,8 +37,12 @@ def logger_wrapper(f):
 
     @wraps(f)
     def wrapper(*args, **kwgs):
-        return f(*args, correlationId=meemooId(), **kwgs)
-
+        # if we already have an id dont set one
+        print(str(args), str(kwgs))
+        if 'correlationId' not in kwgs:
+            return f(*args, correlationId=meemooId(), **kwgs)
+        else:
+            return  f(*args, **kwgs)
     return wrapper
 
 
@@ -84,7 +88,7 @@ def incoming_rabbit_wrapper(f):
 
 
 def __get_request_id_from_rabbit_message(f):
-    """ 
+    """
     The callback function gets the following positional arguments: channel, method, properties, body.
     The correlation id is stored in properties.correlation_id.
     """

@@ -1,0 +1,27 @@
+site_name: "Meemoo chassis Documentation"
+nav:
+- readme:
+  - index.md
+  - MODULES.md
+  - viaa/index.md
+- openshift_helpers:
+  - viaa/create_openshift_template.md
+  - viaa/openshift_helpers.md
+  - viaa/create_openshift_pipe.md   
+- logging_and_configparser:
+  - viaa/observability/index.md
+  - viaa/observability/logging.md
+  - viaa/configuration.md
+markdown_extensions:
+    - smarty
+    - toc:
+        permalink: True
+    - sane_lists
+
+docs_dir: docs
+site_dir: _build/site
+theme:    mkdocs
+repo_url: https://github.com/viaacode/chassis.py/
+use_directory_urls: false
+strict: false
+edit_uri: ''

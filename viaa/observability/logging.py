@@ -52,7 +52,7 @@ def __configure(logger, config: dict) -> None:
 
 def __init():
     import structlog
-    
+
     timestamper = structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S")
     pre_chain = [
         # Add the log level and a timestamp to the event_dict if the log entry
@@ -60,7 +60,7 @@ def __init():
         structlog.stdlib.add_log_level,
         __add_log_source_to_dict,
         timestamper,
- 
+
     ]
     config = ConfigParser().config
     logging.config.dictConfig({
@@ -98,15 +98,15 @@ def __init():
                     "password": config['logging']['RabPub']['passw'],
                     "fields_under_root": True
                     }
-                    
+
             },
             "loggers": {
                 "": {
                     "handlers": ["default", "rabbit"],
                     "level": config['logging']['level'],
                     "propagate": True,
-                }                
-                               
+                }
+
             }
     })
     structlog.configure(
@@ -140,8 +140,8 @@ def __init():
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
-        
+
+
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(jsonlogger.JsonFormatter())
     root_logger = logging.getLogger()
@@ -159,17 +159,11 @@ def __add_log_source_to_dict(logger, _, event_dict):
         get_current_task = lambda: None
     task = get_current_task()
     if task and task.request and 'fields' in event_dict:
-        # if event_dict['fields'] is None:
-        #     event_dict['fields']={}
         event_dict['fields']['celery_task_id'] = task.request.id
         event_dict['fields']['celery_task_name'] = task.name
-        # event_dict.update(fields.task_id=task.request.id,
-        #                   fields.task_name=task.name)
-    # else:
-    #      event_dict.setdefault('fields', {})
-    #      event_dict.setdefault('fields', {})      
-
-        
+    if 'task_id' in event_dict:
+        event_dict['correlationId'] = event_dict['task_id']
+        del event_dict['task_id']
     # If by any chance the record already contains a `source` key,
     # (very rare) move that into a 'source_original' key
     if 'source' in event_dict:

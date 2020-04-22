@@ -8,12 +8,13 @@
 import inspect
 import logging
 import sys
-
+import logging.config
 import structlog
 from pythonjsonlogger import jsonlogger
 from structlog._frames import _find_first_app_frame_and_name
 
 from viaa.configuration import ConfigParser
+
 
 loggers: dict = {}
 
@@ -34,7 +35,6 @@ def get_logger(name="", config: ConfigParser = None):
 
     if config is not None:
         logger = __configure(logger, config.config["logging"])
-
     return logger
 
 
@@ -52,6 +52,64 @@ def __configure(logger, config: dict) -> object:
 
 
 def __init():
+    import structlog
+
+    timestamper = structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S")
+    pre_chain = [
+        # Add the log level and a timestamp to the event_dict if the log entry
+        # is not from structlog.
+        structlog.stdlib.add_log_level,
+        __add_log_source_to_dict,
+        timestamper,
+
+    ]
+    config = ConfigParser().config
+    logging.config.dictConfig({
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "plain": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processor": structlog.dev.ConsoleRenderer(colors=False),
+                    "foreign_pre_chain": pre_chain,
+                },
+                "colored": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processor": structlog.dev.ConsoleRenderer(colors=True),
+                    "foreign_pre_chain": pre_chain,
+                },
+            },
+            "handlers": {
+                "default": {
+                    "level": config['logging']['level'],
+                    "class": "logging.StreamHandler",
+                    "formatter": "colored",
+                },
+                "file": {
+                    "level": config['logging']['level'],
+                    "class": "logging.handlers.WatchedFileHandler",
+                    "filename": __name__ + ".log",
+                    "formatter": "plain",
+                },
+                "rabbit":{
+                        "level": config['logging']['level'],
+                    "class": "python_logging_rabbitmq.RabbitMQHandlerOneWay",
+                    "host": config['logging']['RabPub']['host'],
+                    "username": config['logging']['RabPub']['user'],
+                    "password": config['logging']['RabPub']['passw'],
+                    "fields_under_root": True
+                    }
+
+            },
+            "loggers": {
+                "": {
+                    "handlers": ["default", "rabbit"],
+                    "level": config['logging']['level'],
+                    "propagate": True,
+                }
+
+            }
+    })
     structlog.configure(
         processors=[
             # This performs the initial filtering, so we don't
@@ -82,6 +140,7 @@ def __init():
         cache_logger_on_first_use=True,
     )
 
+
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(jsonlogger.JsonFormatter())
     root_logger = logging.getLogger()
@@ -91,7 +150,21 @@ def __init():
     root_logger.addHandler(handler)
 
 
+
 def __add_log_source_to_dict(logger, _, event_dict):
+
+    try:
+        from celery._state import get_current_task
+        get_current_task = get_current_task
+    except ImportError:
+        get_current_task = lambda: None
+    task = get_current_task()
+    if task and task.request and 'fields' in event_dict:
+        event_dict['fields']['celery_task_id'] = task.request.id
+        event_dict['fields']['celery_task_name'] = task.name
+    if 'task_id' in event_dict:
+        event_dict['correlationId'] = event_dict['task_id']
+        del event_dict['task_id']
     # If by any chance the record already contains a `source` key,
     # (very rare) move that into a 'source_original' key
     if "source" in event_dict:
